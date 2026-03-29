@@ -12,9 +12,9 @@ export default function ResultCard({ product, onAnalyze }) {
   const cfg = bias ? BIAS_CONFIG[bias.label] || BIAS_CONFIG["Fair"] : BIAS_CONFIG["Fair"];
 
   const genderBadge = {
-    female: { label: "For Women", color: "#ec4899" },
-    male:   { label: "For Men",   color: "#3b82f6" },
-    neutral:{ label: "Neutral",   color: "#6b7280" },
+    female:  { label: "For Women 🎀", color: "#ec4899" },
+    male:    { label: "For Men",      color: "#3b82f6" },
+    neutral: { label: "Neutral",      color: "#6b7280" },
   }[product.gender] || { label: "Unknown", color: "#6b7280" };
 
   return (
@@ -24,7 +24,7 @@ export default function ResultCard({ product, onAnalyze }) {
           src={product.image || "https://via.placeholder.com/100"}
           alt={product.name}
           className="card-img"
-          onError={(e) => { e.target.src = "https://via.placeholder.com/100?text=No+Image"; }}
+          onError={(e) => { e.target.src = "https://via.placeholder.com/100?text=💄"; }}
         />
         <div className="card-meta">
           <span className="brand-tag">{product.brand}</span>
@@ -49,11 +49,14 @@ export default function ResultCard({ product, onAnalyze }) {
             <span className="percent-diff">+{bias.percentDiff}%</span>
           </div>
           <div className="bias-bar-bg">
-            <div className="bias-bar-fill" style={{ width: `${cfg.bar}%`, background: cfg.color }} />
+            <div
+              className="bias-bar-fill"
+              style={{ width: `${cfg.bar}%`, background: cfg.color }}
+            />
           </div>
           {bias.lifetimeCost > 0 && (
             <p className="lifetime-cost">
-              📅 Extra spend per year: <strong>₹{bias.lifetimeCost.toLocaleString()}</strong>
+              💸 Extra spend per year: <strong>₹{bias.lifetimeCost.toLocaleString()}</strong>
             </p>
           )}
         </div>

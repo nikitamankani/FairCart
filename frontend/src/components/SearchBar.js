@@ -8,37 +8,55 @@ export default function SearchBar({ onSearch, loading }) {
     if (query.trim()) onSearch(query.trim());
   };
 
-  const suggestions = ["women's razor", "shampoo", "deodorant", "sunscreen", "body wash"];
+  const suggestions = [
+    "women's razor",
+    "shampoo",
+    "deodorant",
+    "sunscreen",
+    "body wash",
+  ];
 
   return (
-    <div className="search-wrapper">
-      <form onSubmit={handleSubmit} className="search-form">
-        <div className="search-input-group">
-          <span className="search-icon">🔍</span>
+    <div className="hero-search">
+      {/* background blobs */}
+      <div className="blob blob1"></div>
+      <div className="blob blob2"></div>
+
+      <div className="hero-content">
+        <h1 className="hero-title">
+          Find the <span>hidden price bias</span> 💅
+        </h1>
+        <p className="hero-sub">
+          Discover if you're paying more just because it's "for women"
+        </p>
+
+        <form onSubmit={handleSubmit} className="search-glass">
+          <span>🔍</span>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search a product (e.g. women's razor, shampoo...)"
-            className="search-input"
+            placeholder="Try 'women's razor' or 'shampoo'..."
             disabled={loading}
           />
-          <button type="submit" className="search-btn" disabled={loading || !query.trim()}>
-            {loading ? <span className="spinner" /> : "Analyze"}
+          <button type="submit" disabled={loading || !query.trim()}>
+            {loading ? "✨..." : "Analyze"}
           </button>
+        </form>
+
+        <div className="chips">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setQuery(s);
+                onSearch(s);
+              }}
+            >
+              {s}
+            </button>
+          ))}
         </div>
-      </form>
-      <div className="suggestions">
-        <span className="suggestions-label">Try:</span>
-        {suggestions.map((s) => (
-          <button
-            key={s}
-            className="suggestion-chip"
-            onClick={() => { setQuery(s); onSearch(s); }}
-          >
-            {s}
-          </button>
-        ))}
       </div>
     </div>
   );

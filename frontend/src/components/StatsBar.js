@@ -30,12 +30,8 @@ export default function StatsBar() {
             <span
               className="stat-badge"
               style={{
-                background:
-                  s.bias?.label === "High" ? "#fef2f2" :
-                  s.bias?.label === "Moderate" ? "#fff7ed" :
-                  "#f0fdf4",
                 color:
-                  s.bias?.label === "High" ? "#ef4444" :
+                  s.bias?.label === "High"     ? "#ef4444" :
                   s.bias?.label === "Moderate" ? "#f97316" :
                   "#22c55e",
               }}
