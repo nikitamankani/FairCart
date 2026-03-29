@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { saveProduct } from "../services/api";
 
 const BIAS_CONFIG = {
   High:     { color: "#ef4444", bg: "#fef2f2", emoji: "🔴", bar: 95 },
@@ -7,9 +9,12 @@ const BIAS_CONFIG = {
   Fair:     { color: "#22c55e", bg: "#f0fdf4", emoji: "🟢", bar: 5  },
 };
 
-export default function ResultCard({ product, onAnalyze }) {
+export default function ResultCard({ product, onAnalyze, onAuthRequired }) {
+  const { user } = useAuth();
   const bias = product.bias;
   const cfg = bias ? BIAS_CONFIG[bias.label] || BIAS_CONFIG["Fair"] : BIAS_CONFIG["Fair"];
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const genderBadge = {
     female:  { label: "For Women 🎀", color: "#ec4899" },
@@ -17,8 +22,29 @@ export default function ResultCard({ product, onAnalyze }) {
     neutral: { label: "Neutral",      color: "#6b7280" },
   }[product.gender] || { label: "Unknown", color: "#6b7280" };
 
+  const handleSave = async (e) => {
+    e.stopPropagation();
+    if (!user) { onAuthRequired?.(); return; }
+    if (!product._id || String(product._id).startsWith("serp_")) return;
+    setSaving(true);
+    try {
+      const res = await saveProduct(product._id);
+      setSaved(res.data.saved);
+    } catch (err) { console.error(err); }
+    finally { setSaving(false); }
+  };
+
   return (
     <div className="result-card" style={{ "--bias-color": cfg.color }}>
+      <button
+        className={"save-btn" + (saved ? " saved" : "")}
+        onClick={handleSave}
+        title={user ? (saved ? "Remove from favourites" : "Save product") : "Log in to save"}
+        disabled={saving}
+      >
+        {saved ? "💜" : "🤍"}
+      </button>
+
       <div className="card-header">
         <img
           src={product.image || "https://via.placeholder.com/100"}
@@ -49,10 +75,7 @@ export default function ResultCard({ product, onAnalyze }) {
             <span className="percent-diff">+{bias.percentDiff}%</span>
           </div>
           <div className="bias-bar-bg">
-            <div
-              className="bias-bar-fill"
-              style={{ width: `${cfg.bar}%`, background: cfg.color }}
-            />
+            <div className="bias-bar-fill" style={{ width: cfg.bar + "%", background: cfg.color }} />
           </div>
           {bias.lifetimeCost > 0 && (
             <p className="lifetime-cost">

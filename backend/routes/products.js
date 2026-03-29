@@ -7,8 +7,10 @@ const {
   calculateBiasScore,
   findAlternatives,
 } = require("../utils/biasEngine");
+const { searchRealProducts } = require("../utils/serpApi");
+const { protect } = require("../middleware/auth");
 
-// GET /api/products/search?q=women's razor
+// ── GET /api/products/search?q=women's razor ──────────────────────────────────
 router.get("/search", async (req, res) => {
   try {
     const { q } = req.query;
@@ -17,8 +19,24 @@ router.get("/search", async (req, res) => {
     const detectedGender = detectGender(q, []);
     const neutralQuery = stripGenderedKeywords(q);
 
-    // Search by text or partial name match
-    let products = await Product.find({
+    // 1️⃣ Try SerpAPI first (real-time data)
+    const liveResults = await searchRealProducts(q);
+
+    let products;
+
+    if (liveResults && liveResults.length > 0) {
+      // Use real-time results — enrich with bias scores on-the-fly
+      const enriched = enrichWithBias(liveResults);
+      return res.json({
+        products: enriched,
+        detectedGender,
+        neutralQuery,
+        source: "live",
+      });
+    }
+
+    // 2️⃣ Fallback: MongoDB mock dataset
+    products = await Product.find({
       $or: [
         { name: { $regex: neutralQuery, $options: "i" } },
         { brand: { $regex: neutralQuery, $options: "i" } },
@@ -28,13 +46,16 @@ router.get("/search", async (req, res) => {
     }).limit(20);
 
     if (products.length === 0) {
-      return res.json({ products: [], detectedGender, message: "No products found" });
+      return res.json({
+        products: [],
+        detectedGender,
+        message: "No products found",
+        source: "mock",
+      });
     }
 
-    // Enrich each product with bias score
     const enriched = products.map((product) => {
       const p = product.toObject();
-      // Find the cheapest alternative in same category different gender
       const sameCategory = products.filter(
         (x) =>
           x.category === p.category &&
@@ -48,26 +69,24 @@ router.get("/search", async (req, res) => {
         bias = calculateBiasScore(p.price, alternative.price);
       } else if (p.gender === "male" && alternative) {
         bias = calculateBiasScore(alternative.price, p.price);
-        if (bias) bias.reversed = true; // female priced lower than male
+        if (bias) bias.reversed = true;
       }
-
       return { ...p, bias };
     });
 
-    res.json({ products: enriched, detectedGender, neutralQuery });
+    res.json({ products: enriched, detectedGender, neutralQuery, source: "mock" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/products/analyze/:id - full bias analysis for a product
+// ── GET /api/products/analyze/:id ─────────────────────────────────────────────
 router.get("/analyze/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
     const allInCategory = await Product.find({ category: product.category });
-
     const alternatives = findAlternatives(product.toObject(), allInCategory);
 
     let biasScore = null;
@@ -87,7 +106,7 @@ router.get("/analyze/:id", async (req, res) => {
   }
 });
 
-// GET /api/products/categories
+// ── GET /api/products/categories ──────────────────────────────────────────────
 router.get("/categories", async (req, res) => {
   try {
     const categories = await Product.distinct("category");
@@ -97,7 +116,7 @@ router.get("/categories", async (req, res) => {
   }
 });
 
-// GET /api/products/stats - platform-wide stats
+// ── GET /api/products/stats ───────────────────────────────────────────────────
 router.get("/stats", async (req, res) => {
   try {
     const categories = await Product.distinct("category");
@@ -108,8 +127,10 @@ router.get("/stats", async (req, res) => {
       const maleProducts = await Product.find({ category: cat, gender: "male" });
 
       if (femaleProducts.length && maleProducts.length) {
-        const avgFemale = femaleProducts.reduce((s, p) => s + p.price, 0) / femaleProducts.length;
-        const avgMale = maleProducts.reduce((s, p) => s + p.price, 0) / maleProducts.length;
+        const avgFemale =
+          femaleProducts.reduce((s, p) => s + p.price, 0) / femaleProducts.length;
+        const avgMale =
+          maleProducts.reduce((s, p) => s + p.price, 0) / maleProducts.length;
         const bias = calculateBiasScore(avgFemale, avgMale);
         stats.push({ category: cat, avgFemale, avgMale, bias });
       }
@@ -121,10 +142,25 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 async function getCategoryAvg(category, gender) {
   const products = await Product.find({ category, gender });
   if (!products.length) return null;
   return products.reduce((s, p) => s + p.price, 0) / products.length;
+}
+
+function enrichWithBias(products) {
+  return products.map((p) => {
+    const sameCategory = products.filter(
+      (x) => x.category === p.category && x._id !== p._id && x.gender !== p.gender
+    );
+    const alternative = sameCategory.sort((a, b) => a.price - b.price)[0];
+    let bias = null;
+    if (p.gender === "female" && alternative) {
+      bias = calculateBiasScore(p.price, alternative.price);
+    }
+    return { ...p, bias };
+  });
 }
 
 module.exports = router;
