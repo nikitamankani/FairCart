@@ -9,6 +9,8 @@ const BIAS_CONFIG = {
   Fair:     { color: "#22c55e", bg: "#f0fdf4", emoji: "🟢", bar: 5  },
 };
 
+const isLiveProduct = (id) => !id || String(id).startsWith("serp_");
+
 export default function ResultCard({ product, onAnalyze, onAuthRequired }) {
   const { user } = useAuth();
   const bias = product.bias;
@@ -25,7 +27,7 @@ export default function ResultCard({ product, onAnalyze, onAuthRequired }) {
   const handleSave = async (e) => {
     e.stopPropagation();
     if (!user) { onAuthRequired?.(); return; }
-    if (!product._id || String(product._id).startsWith("serp_")) return;
+    if (isLiveProduct(product._id)) return; // can't save live products without DB id
     setSaving(true);
     try {
       const res = await saveProduct(product._id);
@@ -34,16 +36,29 @@ export default function ResultCard({ product, onAnalyze, onAuthRequired }) {
     finally { setSaving(false); }
   };
 
+  // bias explanation tooltip text
+  const biasExplain = bias
+    ? `This product is priced ${bias.percentDiff}% higher than an equivalent ${product.gender === "female" ? "men's" : "women's"} product in the same category.`
+    : "";
+
   return (
     <div className="result-card" style={{ "--bias-color": cfg.color }}>
-      <button
-        className={"save-btn" + (saved ? " saved" : "")}
-        onClick={handleSave}
-        title={user ? (saved ? "Remove from favourites" : "Save product") : "Log in to save"}
-        disabled={saving}
-      >
-        {saved ? "💜" : "🤍"}
-      </button>
+      {/* Source badge for live products */}
+      {product.source === "serpapi" && (
+        <div className="live-badge">🔴 Live</div>
+      )}
+
+      {/* Save heart */}
+      {!isLiveProduct(product._id) && (
+        <button
+          className={"save-btn" + (saved ? " saved" : "")}
+          onClick={handleSave}
+          title={user ? (saved ? "Remove from favourites" : "Save product") : "Log in to save"}
+          disabled={saving}
+        >
+          {saved ? "💜" : "🤍"}
+        </button>
+      )}
 
       <div className="card-header">
         <img
@@ -69,7 +84,7 @@ export default function ResultCard({ product, onAnalyze, onAuthRequired }) {
       </div>
 
       {bias && (
-        <div className="bias-section" style={{ background: cfg.bg }}>
+        <div className="bias-section" style={{ background: cfg.bg }} title={biasExplain}>
           <div className="bias-header">
             <span>{cfg.emoji} Pink Tax: <strong style={{ color: cfg.color }}>{bias.label}</strong></span>
             <span className="percent-diff">+{bias.percentDiff}%</span>
@@ -91,9 +106,21 @@ export default function ResultCard({ product, onAnalyze, onAuthRequired }) {
         </div>
       )}
 
-      <button className="analyze-btn" onClick={() => onAnalyze(product._id)}>
+      <button className="analyze-btn" onClick={() => onAnalyze(product._id, product)}>
         View Full Analysis →
       </button>
+
+      {/* Link to product if from SerpAPI */}
+      {product.productLink && (
+        <a
+          href={product.productLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="product-link"
+        >
+          View on store ↗
+        </a>
+      )}
     </div>
   );
 }

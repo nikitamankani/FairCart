@@ -13,14 +13,16 @@ API.interceptors.request.use((config) => {
 export const searchProducts = (query) =>
   API.get(`/products/search?q=${encodeURIComponent(query)}`);
 
-export const analyzeProduct = (id) =>
-  API.get(`/products/analyze/${id}`);
+// Smart analyze — uses live endpoint for SerpAPI products, DB endpoint for mock
+export const analyzeProduct = (id, product, allProducts) => {
+  if (id && String(id).startsWith("serp_")) {
+    return API.post("/products/analyze-live", { product, allProducts });
+  }
+  return API.get(`/products/analyze/${id}`);
+};
 
-export const getStats = () =>
-  API.get("/products/stats");
-
-export const getCategories = () =>
-  API.get("/products/categories");
+export const getStats = () => API.get("/products/stats");
+export const getCategories = () => API.get("/products/categories");
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const loginUser = (email, password) =>

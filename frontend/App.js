@@ -57,7 +57,8 @@ export default function App() {
   };
 
   const handleAnalyze = async (id) => {
-    try { const res = await analyzeProduct(id); setModalData(res.data); }
+    const product = results.find((p) => p._id === id);
+    try { const res = await analyzeProduct(id, product, results); setModalData(res.data); }
     catch (err) { setError("Analysis failed."); }
   };
 
@@ -216,10 +217,6 @@ export default function App() {
           </>
         )}
       </main>
-
-      <footer className="footer">
-        <p>Built for Hackfinity 🎀 · FairCart by Team Cali · PES University 💜</p>
-      </footer>
 
       {modalData && <AnalysisModal data={modalData} onClose={() => setModalData(null)} />}
       {showAuth && <AuthPage onClose={() => setShowAuth(false)} />}

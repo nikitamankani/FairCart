@@ -19,12 +19,12 @@ const MARQUEE_ITEMS = [
 ];
 
 const STAT_CARDS = [
-  { emoji: "💰", title: "Extra Annual Spend",   stat: "₹15,000+", sub: "per woman on pink-taxed products",      color: "#ffc2dc", border: "#ff94c2" },
-  { emoji: "🛒", title: "Categories Affected",  stat: "42+",      sub: "product categories with gendered pricing", color: "#e9c8ff", border: "#c77dff" },
-  { emoji: "✂️", title: "Razors Markup",         stat: "+13%",     sub: "women's vs identical men's product",    color: "#ffd6e7", border: "#ff80b5" },
-  { emoji: "🧴", title: "Shampoo Tax",           stat: "+11%",     sub: "same formula, different price tag",     color: "#fff0c2", border: "#ffb347" },
-  { emoji: "🧼", title: "Skincare Bias",         stat: "+9%",      sub: "women's skincare vs gender-neutral",    color: "#c8f0e9", border: "#5ec4b0" },
-  { emoji: "🧴", title: "Deodorant Gap",         stat: "+8%",      sub: "women's deodorant premium",             color: "#ffc2dc", border: "#ff94c2" },
+  { emoji: "💰", title: "Extra Annual Spend",   stat: "₹15,000+", sub: "per woman on pink-taxed products",         color: "#ffc2dc", border: "#ff94c2" },
+  { emoji: "🛒", title: "Categories Affected",  stat: "42+",      sub: "product categories with gendered pricing",  color: "#e9c8ff", border: "#c77dff" },
+  { emoji: "✂️", title: "Razors Markup",         stat: "+13%",     sub: "women's vs identical men's product",        color: "#ffd6e7", border: "#ff80b5" },
+  { emoji: "🧴", title: "Shampoo Tax",           stat: "+11%",     sub: "same formula, different price tag",         color: "#fff0c2", border: "#ffb347" },
+  { emoji: "🧼", title: "Skincare Bias",         stat: "+9%",      sub: "women's skincare vs gender-neutral",        color: "#c8f0e9", border: "#5ec4b0" },
+  { emoji: "🧴", title: "Deodorant Gap",         stat: "+8%",      sub: "women's deodorant premium",                 color: "#ffc2dc", border: "#ff94c2" },
 ];
 
 const FACT_ROWS = [
@@ -56,10 +56,32 @@ export default function App() {
     } finally { setLoading(false); }
   };
 
-  const handleAnalyze = async (id) => {
-    try { const res = await analyzeProduct(id); setModalData(res.data); }
-    catch (err) { setError("Analysis failed."); }
-  };
+  // ── KEY FIX: pass full product object for live (serp_) products ──
+const handleAnalyze = async (id, productObj) => {
+  // Live product — build analysis locally, no backend call needed
+  if (String(id).startsWith("serp_")) {
+    setModalData({
+      product: productObj,
+      alternatives: results.filter(
+        (p) => p.category === productObj.category &&
+               p._id !== productObj._id &&
+               (p.gender === "male" || p.gender === "neutral") &&
+               p.price <= productObj.price
+      ).slice(0, 3),
+      biasScore: productObj.bias || null,
+      categoryAvgFemale: null,
+      categoryAvgMale: null,
+    });
+    return;
+  }
+  // Mock product — hit backend as normal
+  try {
+    const res = await analyzeProduct(id);
+    setModalData(res.data);
+  } catch (err) {
+    setError("Analysis failed.");
+  }
+};
 
   const allMarquee = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
 
@@ -111,17 +133,12 @@ export default function App() {
         {/* ── Pre-search landing content ── */}
         {!searched && (
           <div className="landing-content">
-
-            {/* Stat Cards Grid — 3 columns, 2 rows */}
             <section className="landing-section">
               <div className="section-label">📊 By the numbers</div>
               <div className="stat-cards-grid">
                 {STAT_CARDS.map((c, i) => (
-                  <div
-                    className="stat-card-grid-item"
-                    key={i}
-                    style={{ "--card-color": c.color, "--card-border": c.border }}
-                  >
+                  <div className="stat-card-grid-item" key={i}
+                    style={{ "--card-color": c.color, "--card-border": c.border }}>
                     <span className="scg-emoji">{c.emoji}</span>
                     <div className="scg-stat">{c.stat}</div>
                     <div className="scg-title">{c.title}</div>
@@ -131,7 +148,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* Sticker row */}
             <div className="sticker-banner">
               <div className="sticker"><span className="sticker-emoji">🎀</span> Pink Tax is real</div>
               <div className="sticker"><span className="sticker-emoji">📉</span> Save up to ₹20K/yr</div>
@@ -141,7 +157,6 @@ export default function App() {
               <div className="sticker"><span className="sticker-emoji">⚡</span> Real-time results</div>
             </div>
 
-            {/* Did You Know fact strip */}
             <section className="landing-section">
               <div className="section-label">💡 Did you know?</div>
               <div className="fact-strip">
@@ -154,7 +169,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* How it works */}
             <section className="landing-section">
               <div className="section-label">✨ How it works</div>
               <div className="how-grid">
@@ -173,11 +187,9 @@ export default function App() {
                 ))}
               </div>
             </section>
-
           </div>
         )}
 
-        {/* ── Stats Bar (always visible) ── */}
         <StatsBar />
 
         {error && <div className="error-banner">⚠️ {error}</div>}
@@ -210,7 +222,12 @@ export default function App() {
             </div>
             <div className="results-grid">
               {results.map((p) => (
-                <ResultCard key={p._id} product={p} onAnalyze={handleAnalyze} onAuthRequired={() => setShowAuth(true)} />
+                <ResultCard
+                  key={p._id}
+                  product={p}
+                  onAnalyze={(id) => handleAnalyze(id, p)}
+                  onAuthRequired={() => setShowAuth(true)}
+                />
               ))}
             </div>
           </>
